@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "cockroachdb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  username      String    @unique
+  displayName   String
+  passwordHash  String
+  avatar        String?
+  coverPhoto    String?
+  bio          String?
+  location     String?
+  birthday     DateTime
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLogin    DateTime?
+  isVerified   Boolean   @default(false)
+  
+  // Profile
+  firstName    String?
+  lastName     String?
+  socialLinks  Json?
+  tags         Tag[]     @relation(fields: [tagIds], references: [id])
+  tagIds       String[]
+
+  // Relationships
+  posts        Post[]
+  sentMessages     Message[]  @relation("SentMessages")
+  receivedMessages Message[]  @relation("ReceivedMessages")
+  followers    Follow[]   @relation("Following")
+  following    Follow[]   @relation("Followers")
+  subscription Subscription?
+
+  // Settings
+  settings     Json?     @default("{}")
+  
+  @@index([username])
+  @@index([email])
+}
+
+model Post {
+  id          String    @id @default(uuid())
+  content     String
+  media       String[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id])
+  likes       Like[]
+  comments    Comment[]
+  
+  @@index([authorId])
+}
+
+model Message {
+  id          String    @id @default(uuid())
+  content     String
+  createdAt   DateTime  @default(now())
+  readAt      DateTime?
+  
+  // Relations
+  senderId    String
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId  String
+  receiver    User      @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+model Follow {
+  id          String    @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime  @default(now())
+  
+  follower    User      @relation("Followers", fields: [followerId], references: [id])
+  following   User      @relation("Following", fields: [followingId], references: [id])
+  
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Like {
+  id        String    @id @default(uuid())
+  createdAt DateTime  @default(now())
+  
+  // Relations
+  postId    String
+  post      Post      @relation(fields: [postId], references: [id])
+  userId    String
+  
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model Comment {
+  id        String    @id @default(uuid())
+  content   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  // Relations
+  postId    String
+  post      Post      @relation(fields: [postId], references: [id])
+  userId    String
+  
+  @@index([postId])
+  @@index([userId])
+}
+
+model Tag {
+  id        String    @id @default(uuid())
+  category  String
+  value     String
+  
+  // Relations
+  users     User[]    @relation(fields: [userIds], references: [id])
+  userIds   String[]
+  
+  @@unique([category, value])
+}
+
+model Subscription {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  tier          String    // 'free' or 'pro'
+  startDate     DateTime  @default(now())
+  endDate       DateTime?
+  autoRenew     Boolean   @default(true)
+  
+  // Relations
+  user          User      @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+}
